@@ -1,23 +1,26 @@
+using RateLimiterApp.Middleware;
+using RateLimiterApp.Services;
+using StackExchange.Redis;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Register Redis Connection
+var redisConnectionString = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConnectionString));
 
-builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+// Register Rate Limiter Service
+builder.Services.AddSingleton<IRateLimiterService, RedisRateLimiterService>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// Enable Rate Limiting Middleware
+app.UseMiddleware<RateLimitingMiddleware>();
+
+// Sample API Endpoint
+app.MapGet("/api/data", () => Results.Ok(new
 {
-    app.MapOpenApi();
-}
-
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
-
-app.MapControllers();
+    Message = "Berhasil mengakses data terlindungi!",
+    Timestamp = DateTime.UtcNow
+}));
 
 app.Run();
